@@ -1,8 +1,11 @@
+
 #include <bcm2835.h>
 #include <stdio.h>
 #include <alsa/asoundlib.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 // pins for various clock dividers
 #define PIN1 RPI_BPLUS_GPIO_J8_31
@@ -17,6 +20,9 @@
 // we want a 15 ms pulse but 30 seems a bit more stable
 #define PULSE_LEN 30
 
+// where should that come from?
+#define UNIX_PATH_MAX    108
+
 typedef enum play_state
 {
 	play_state_stopped,
@@ -26,8 +32,9 @@ play_state;
 
 int main(int argc, char **argv)
 {
+
     openlog("slog", LOG_PID|LOG_CONS, LOG_USER);
-    syslog(LOG_EMERG, "MIRG: setting up");
+    syslog(LOG_EMERG, "MIRG: setting up");    
 
 	if(argc != 2)
 	{
@@ -58,11 +65,36 @@ int main(int argc, char **argv)
 		return 1;
 	}
 		
+    // SET UP SOCKET
+    struct sockaddr_un server_address;
+    int server_socket;
+    socklen_t address_length;
+    int n;
+
+    // create socket
+    server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (server_socket < 0){
+        syslog(LOG_EMERG, "MIRG: socket() failed\n");
+        return 1;
+    } 
+    // set server socket address 
+    server_address.sun_family = AF_UNIX;
+    strcpy(server_address.sun_path, "/tmp/mirg_display_server.s");
+    
+    // connect to server 
+    if (connect(server_socket, (struct sockaddr*) &server_address, sizeof(server_address)) < 0){
+        syslog(LOG_EMERG, "MIRG: connect() failed\n");
+    }
+    
+    
+    // set up GPIO
 	bcm2835_gpio_fsel(PIN1, BCM2835_GPIO_FSEL_OUTP);
 	bcm2835_gpio_fsel(PIN2, BCM2835_GPIO_FSEL_OUTP);
 	bcm2835_gpio_fsel(PIN4, BCM2835_GPIO_FSEL_OUTP);
 	bcm2835_gpio_fsel(PIN8, BCM2835_GPIO_FSEL_OUTP);
 	bcm2835_gpio_fsel(PIN16, BCM2835_GPIO_FSEL_OUTP);
+	
+	// Run main loop
 	play_state state = play_state_stopped;
 	uint8_t ticks = 0;
 	uint8_t multiplier_cnt = 0;
@@ -120,6 +152,14 @@ int main(int argc, char **argv)
 	    			        bcm2835_gpio_set_multi(mask);
 							bcm2835_delay(PULSE_LEN);
 	    			        bcm2835_gpio_clr_multi(mask);
+	    			        printf("Sending to sock: %c\n", multiplier_cnt);
+	    			        //n = write(server_socket, (char*)&multiplier_cnt, 1);
+                            //if (n < 0) {
+                            //    printf("errno is %i\n", n);
+                                //syslog(LOG_EMERG, "MIRG: ERROR writing to socket\n");
+                            //}           
+                            break;      
+	    			        
 						}
 						multiplier_cnt++;
 					}
