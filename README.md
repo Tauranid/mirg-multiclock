@@ -1,3 +1,9 @@
+# On this fork:
+some updates specific to my use case running on raspberry pi zero w:
+* generate multiple clocks with various dividers to make longer, "lower-resolution" step sequences on devices with very limited step count (e.g. volca bass)
+* crude autostart and auto-restart of mirg when OP-1 is connected as USB host
+* initial implementation at a visualizer using pimomori scroll phat hd, running in separate process and controlled by IPC via unix sockets - works more or less, but I stopped pursuing this further
+
 # mirg
 a simple program for the raspberry pi. Listens to MIDI clock/start/stop on a USB port, provides korg-style pulse sync on GPIO. For example, this lets you sync Korg Volca or Teeange Engineering OP-XX to any device which provides clock via USB, such as Elektron Analog series or Teenage Engineering OP-1.
 
